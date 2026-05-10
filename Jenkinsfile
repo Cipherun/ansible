@@ -1,13 +1,13 @@
 pipeline {
-    agent any  // Use any available agent
+    agent any
     
     environment {
         LANG = 'en_US.UTF-8'
         LC_ALL = 'en_US.UTF-8'
-    }   // this has to be added only if you get an error saying UTF required is 8 but showing in ISO00009
+    }
 
     tools {
-        maven 'Maven3'  // Changed from 'MAVEN' to 'Maven3'
+        maven 'Maven3'
     }
     
     stages {
@@ -19,7 +19,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'mvn clean package'  // Run Maven build
+                sh 'mvn clean package'
             }
         }
 
@@ -31,8 +31,12 @@ pipeline {
         
         stage('Deploy') {
             steps {
-                // Remove duplicate mvn clean package - you already built in Build stage
-                sh 'ansible-playbook ansible/playbook.yml -i ansible/hosts.ini'
+                withCredentials([string(credentialsId: 'sudo-password', variable: 'SUDO_PASS')]) {
+                    sh '''
+                        ansible-playbook ansible/playbook.yml -i ansible/hosts.ini \
+                        --extra-vars "ansible_become_password=${SUDO_PASS}"
+                    '''
+                }
             }
         }
     }
