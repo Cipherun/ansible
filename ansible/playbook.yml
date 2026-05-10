@@ -1,15 +1,49 @@
+---
 - name: Deploy to Tomcat
   hosts: web
   become: yes
-  tasks:
-    - name: Copy WAR file to Tomcat
-      copy:
-        src: "/var/snap/jenkins/5022/workspace/MyMavenAnsibleApp/target/MyMavenAnsibleApp.war"
-        dest: "/opt/tomcat/webapps/MyMavenAnsibleApp.war"
-        remote_src: no
+  vars:
+    tomcat_home: /opt/tomcat
+    war_file: "MavenAnsibleWebApp1.war"
+    workspace_path: "/var/lib/jenkins/workspace/MyMavenAnsibleApp"
 
-    - name: Restart Tomcat
+  tasks:
+    - name: Check if WAR file exists
+      stat:
+        path: "{{ workspace_path }}/target/{{ war_file }}"
+      register: war_check
+
+    - name: Fail if WAR file missing
+      fail:
+        msg: "WAR file not found at {{ workspace_path }}/target/{{ war_file }}"
+      when: not war_check.stat.exists
+
+    - name: Copy WAR file to Tomcat webapps
+      copy:
+        src: "{{ workspace_path }}/target/{{ war_file }}"
+        dest: "{{ tomcat_home }}/webapps/{{ war_file }}"
+        owner: tomcat
+        group: tomcat
+        mode: '0644'
+        backup: yes
+
+    - name: Check Tomcat is running
+      shell: pgrep -f tomcat
+      register: tomcat_pid
+      ignore_errors: yes
+
+    - name: Restart Tomcat if running
       shell: |
-        /opt/tomcat/bin/shutdown.sh || true
+        {{ tomcat_home }}/bin/shutdown.sh
         sleep 5
-        /opt/tomcat/bin/startup.sh
+        {{ tomcat_home }}/bin/startup.sh
+      when: tomcat_pid.rc == 0
+
+    - name: Start Tomcat if not running
+      shell: "{{ tomcat_home }}/bin/startup.sh"
+      when: tomcat_pid.rc != 0
+
+    - name: Wait for Tomcat to start
+      wait_for:
+        port: 8080
+        timeout: 60
