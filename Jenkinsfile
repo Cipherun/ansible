@@ -1,4 +1,4 @@
- pipeline {
+pipeline {
     agent any  // Use any available agent
     
     environment {
@@ -7,8 +7,9 @@
     }   // this has to be added only if you get an error saying UTF required is 8 but showing in ISO00009
 
     tools {
-        maven 'MAVEN'  // Ensure this matches the name configured in Jenkins
+        maven 'Maven3'  // Changed from 'MAVEN' to 'Maven3'
     }
+    
     stages {
         stage('Checkout') {
             steps {
@@ -22,19 +23,17 @@
             }
         }
 
-     stage('Archive') {
+        stage('Archive') {
             steps {
-                archiveArtifacts artifacts: 'target/*.war', fingerprint:true
+                archiveArtifacts artifacts: 'target/*.war', fingerprint: true
             }
         }
+        
         stage('Deploy') {
             steps {
-               sh 'mvn clean package'  
-               sh 'ansible-playbook ansible/playbook.yml -i ansible/hosts.ini'
+                // Remove duplicate mvn clean package - you already built in Build stage
+                sh 'ansible-playbook ansible/playbook.yml -i ansible/hosts.ini'
             }
         }
-
-                  
     }
-
-   }
+}
